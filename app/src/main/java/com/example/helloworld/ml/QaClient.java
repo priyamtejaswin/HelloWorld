@@ -50,6 +50,7 @@ public class QaClient {
   private static final String TAG = "QaClient";
   private static final String DIC_PATH = "vocab.txt";
   private static final String MODEL_PATH = "optTracedVilt.ptl";
+  private static final String PBT_PATH = "optPixelbertTransform.ptl";
 
   private static final int MAX_ANS_LEN = 32;
   private static final int MAX_QUERY_LEN = 64;
@@ -67,6 +68,7 @@ public class QaClient {
 //  private Interpreter tflite;
 
   Module model;
+  Module pbt;
 
   private static final Joiner SPACE_JOINER = Joiner.on(" ");
 
@@ -96,10 +98,21 @@ public class QaClient {
     }
   }
 
+  public void loadImagePreprocessor() {
+    try {
+      Log.v(TAG, "Loading PixelBert preprocessor.");
+      loadPBT(this.context);
+      Log.v(TAG, "PixelBert preprocessor loaded.");
+    } catch (IOException ex) {
+      Log.e(TAG, ex.getMessage());
+    }
+  }
+
 //  @WorkerThread
   public void unload() {
     dic.clear();
     model.destroy();
+    pbt.destroy();
   }
 
   /** Load dictionary from assets. */
@@ -117,6 +130,10 @@ public class QaClient {
 
   public void loadModelFile(Context context) throws IOException {
     model = LiteModuleLoader.load(assetFilePath(context, MODEL_PATH));
+  }
+
+  public void loadPBT(Context context) throws IOException {
+    pbt = LiteModuleLoader.load(assetFilePath(context, PBT_PATH));
   }
 
   /**

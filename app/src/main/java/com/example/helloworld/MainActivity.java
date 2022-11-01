@@ -93,6 +93,8 @@ public class MainActivity extends AppCompatActivity {
         }
 
         qaClient.loadModel();
+
+        qaClient.loadImagePreprocessor();
     }
 
     @Override
