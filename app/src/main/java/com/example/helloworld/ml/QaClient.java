@@ -26,10 +26,13 @@ import com.google.common.base.Joiner;
 //import org.tensorflow.lite.Interpreter;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
@@ -39,10 +42,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.pytorch.Module;
+import org.pytorch.LiteModuleLoader;
+
 /** Interface to load TfLite model and provide predictions. */
 public class QaClient {
   private static final String TAG = "QaClient";
   private static final String DIC_PATH = "vocab.txt";
+  private static final String MODEL_PATH = "optTracedVilt.ptl";
 
   private static final int MAX_ANS_LEN = 32;
   private static final int MAX_QUERY_LEN = 64;
@@ -59,6 +66,8 @@ public class QaClient {
   private final FeatureConverter featureConverter;
 //  private Interpreter tflite;
 
+  Module model;
+
   private static final Joiner SPACE_JOINER = Joiner.on(" ");
 
   public QaClient(Context context) {
@@ -69,7 +78,7 @@ public class QaClient {
 //  @WorkerThread
   public void loadDictionary() {
     try {
-      Log.v(TAG, "Inside QA client");
+      Log.v(TAG, "Loading dictionary.");
       loadDictionaryFile(this.context.getAssets());
       Log.v(TAG, "Dictionary loaded.");
     } catch (IOException ex) {
@@ -77,22 +86,21 @@ public class QaClient {
     }
   }
 
-//  @WorkerThread
-  public void unload() {
-//    tflite.close();
-    dic.clear();
+  public void loadModel() {
+    try {
+      Log.v(TAG, "Loading model.");
+      loadModelFile(this.context);
+      Log.v(TAG, "Model loaded.");
+    } catch (IOException ex) {
+      Log.e(TAG, ex.getMessage());
+    }
   }
 
-  /** Load tflite model from assets. */
-//  public MappedByteBuffer loadModelFile(AssetManager assetManager) throws IOException {
-//    try (AssetFileDescriptor fileDescriptor = assetManager.openFd(MODEL_PATH);
-//        FileInputStream inputStream = new FileInputStream(fileDescriptor.getFileDescriptor())) {
-//      FileChannel fileChannel = inputStream.getChannel();
-//      long startOffset = fileDescriptor.getStartOffset();
-//      long declaredLength = fileDescriptor.getDeclaredLength();
-//      return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
-//    }
-//  }
+//  @WorkerThread
+  public void unload() {
+    dic.clear();
+    model.destroy();
+  }
 
   /** Load dictionary from assets. */
   public void loadDictionaryFile(AssetManager assetManager) throws IOException {
@@ -105,6 +113,10 @@ public class QaClient {
         dic.put(key, index++);
       }
     }
+  }
+
+  public void loadModelFile(Context context) throws IOException {
+    model = LiteModuleLoader.load(assetFilePath(context, MODEL_PATH));
   }
 
   /**
@@ -154,5 +166,25 @@ public class QaClient {
     // end + 1 for the closed interval.
     String ans = SPACE_JOINER.join(feature.origTokens.subList(startIndex, endIndex + 1));
     return ans;
+  }
+
+  /** Get absolute path. */
+  public static String assetFilePath(Context context, String assetName) throws IOException {
+    File file = new File(context.getFilesDir(), assetName);
+    if (file.exists() && file.length() > 0) {
+      return file.getAbsolutePath();
+    }
+
+    try (InputStream is = context.getAssets().open(assetName)) {
+      try (OutputStream os = new FileOutputStream(file)) {
+        byte[] buffer = new byte[4 * 1024];
+        int read;
+        while ((read = is.read(buffer)) != -1) {
+          os.write(buffer, 0, read);
+        }
+        os.flush();
+      }
+      return file.getAbsolutePath();
+    }
   }
 }

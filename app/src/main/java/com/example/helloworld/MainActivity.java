@@ -91,6 +91,8 @@ public class MainActivity extends AppCompatActivity {
             System.out.println("t: " + Arrays.toString(target));
             assert Arrays.equals(ids, target) : "LAST ONE FAILED!";
         }
+
+        qaClient.loadModel();
     }
 
     @Override
