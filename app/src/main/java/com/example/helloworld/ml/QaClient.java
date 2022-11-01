@@ -45,6 +45,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.pytorch.IValue;
 import org.pytorch.MemoryFormat;
 import org.pytorch.Module;
 import org.pytorch.LiteModuleLoader;
@@ -215,6 +216,7 @@ public class QaClient {
 
   public void doVQA(String imgName, String question) {
     try {
+      // Load image.
       Bitmap bitmap = BitmapFactory.decodeStream(this.context.getAssets().open(imgName));
       Tensor inputTensor = TensorImageUtils.bitmapToFloat32Tensor(bitmap,
               ZERO_MEAN,
@@ -222,6 +224,7 @@ public class QaClient {
               MemoryFormat.CHANNELS_LAST);
       Log.v(TAG, "Loaded image: " + Arrays.toString(inputTensor.shape()));
 
+      // Pre-process question.
       List<Integer> input_ids = new ArrayList<>();
       for (Integer e : q2ids(question)[0]) {
         if (e != 0) {
@@ -245,6 +248,31 @@ public class QaClient {
       int[] atten_mask = new int[ids.length];
       Arrays.fill(atten_mask, 1);
       Tensor ts_am = Tensor.fromBlob(atten_mask, shape);
+
+      // Pre-process image.
+      final Tensor img = pbt.forward(IValue.from(inputTensor)).toTensor();
+
+      // Create batch.
+      Map<String, IValue> batch = new HashMap<>();
+      batch.put("text", IValue.from(ts_ii));
+      batch.put("text_ids", IValue.from(ts_ii));
+      batch.put("text_labels", IValue.from(ts_ii));
+      batch.put("text_masks", IValue.from(ts_am));
+      batch.put("image", IValue.from(img));
+
+      final Tensor outputTensor = model.forward(IValue.dictStringKeyFrom(batch)).toTensor();
+      Log.v(TAG, "Completed VQA task!");
+
+      final float[] scores = outputTensor.getDataAsFloatArray();
+      // Perform argmax manually.
+      float maxScore = -Float.MAX_VALUE;
+      int maxScoreIdx = -1;
+      for (int i = 0; i < scores.length; i++) {
+        if (scores[i] > maxScore) {
+          maxScore = scores[i];
+          maxScoreIdx = i;
+        }
+      }
     }
     catch (IOException ex) {
       Log.e(TAG, ex.getMessage());
