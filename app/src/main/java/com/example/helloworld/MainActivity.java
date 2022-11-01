@@ -39,6 +39,9 @@ public class MainActivity extends AppCompatActivity {
 
     public void updateText(View view) {
         Editable query = inputText.getText();
+
+        qaClient.doVQA("helmet.jpg", query.toString());
+
         int[][] bertids = qaClient.q2ids(query.toString());
         for (int element : bertids[0]) {
             System.out.println(element);
@@ -72,7 +75,7 @@ public class MainActivity extends AppCompatActivity {
 
         for (int i = 0; i < texts.length; i++) {
             String t = texts[i];
-            List<Integer> pred = new ArrayList<Integer>();
+            List<Integer> pred = new ArrayList<>();
             int[] target = truths[i];
 
             for (Integer e : qaClient.q2ids(t)[0]) {

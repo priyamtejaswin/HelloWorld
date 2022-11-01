@@ -17,6 +17,8 @@ package com.example.helloworld.ml;
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.util.Log;
 
 import androidx.annotation.WorkerThread;
@@ -37,13 +39,17 @@ import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.pytorch.MemoryFormat;
 import org.pytorch.Module;
 import org.pytorch.LiteModuleLoader;
+import org.pytorch.Tensor;
+ import org.pytorch.torchvision.TensorImageUtils;
 
 /** Interface to load TfLite model and provide predictions. */
 public class QaClient {
@@ -69,6 +75,8 @@ public class QaClient {
 
   Module model;
   Module pbt;
+  float[] ZERO_MEAN = new float[] {0.0f, 0.0f, 0.0f};
+  float[] UNIT_STD = new float[] {1.0f, 1.0f, 1.0f};
 
   private static final Joiner SPACE_JOINER = Joiner.on(" ");
 
@@ -202,6 +210,44 @@ public class QaClient {
         os.flush();
       }
       return file.getAbsolutePath();
+    }
+  }
+
+  public void doVQA(String imgName, String question) {
+    try {
+      Bitmap bitmap = BitmapFactory.decodeStream(this.context.getAssets().open(imgName));
+      Tensor inputTensor = TensorImageUtils.bitmapToFloat32Tensor(bitmap,
+              ZERO_MEAN,
+              UNIT_STD,
+              MemoryFormat.CHANNELS_LAST);
+      Log.v(TAG, "Loaded image: " + Arrays.toString(inputTensor.shape()));
+
+      List<Integer> input_ids = new ArrayList<>();
+      for (Integer e : q2ids(question)[0]) {
+        if (e != 0) {
+          input_ids.add(e);
+          if (e == 102) break;
+        } else break;
+      }
+
+      int[] ids = new int[0];
+      if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+        ids = input_ids.stream().mapToInt(Integer::intValue).toArray();
+      }
+
+      long[] shape = new long[] {1, ids.length};
+      Tensor ts_ii = Tensor.fromBlob(ids, shape);
+
+      int[] token_type = new int[ids.length];
+      Arrays.fill(token_type, 0);
+      Tensor ts_tt = Tensor.fromBlob(token_type, shape);
+
+      int[] atten_mask = new int[ids.length];
+      Arrays.fill(atten_mask, 1);
+      Tensor ts_am = Tensor.fromBlob(atten_mask, shape);
+    }
+    catch (IOException ex) {
+      Log.e(TAG, ex.getMessage());
     }
   }
 }
