@@ -14,3 +14,4 @@ captures
 .cxx
 local.properties
 *.ptl
+app/src/main/assets/vqa_dict.json
