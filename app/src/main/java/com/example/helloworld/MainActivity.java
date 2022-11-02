@@ -39,16 +39,15 @@ public class MainActivity extends AppCompatActivity {
 
     public void updateText(View view) {
         Editable query = inputText.getText();
-
-        qaClient.doVQA("helmet.jpg", query.toString());
+        String answer = qaClient.doVQA("helmet.jpg", query.toString());
 
         int[][] bertids = qaClient.q2ids(query.toString());
         for (int element : bertids[0]) {
             System.out.println(element);
         }
-        System.out.println("Done!");
-        answerView.setText("Processed! " + Arrays.toString(bertids[0]));
-        System.out.println("Clicked.");
+        // answerView.setText("Processed! " + Arrays.toString(bertids[0]));
+        answerView.setText("Answer: " + answer);
+        Log.v(TAG, "QA complete.");
     }
 
     @Override
@@ -56,7 +55,6 @@ public class MainActivity extends AppCompatActivity {
         Log.v(TAG, "onStart");
         super.onStart();
 //        handler.post(() -> qaClient.loadDictionary());
-        Log.v(TAG, "Calling loadDictionary");
         qaClient.loadDictionary();
 
         // Run all tests here for parity!
@@ -96,8 +94,8 @@ public class MainActivity extends AppCompatActivity {
         }
 
         qaClient.loadModel();
-
         qaClient.loadImagePreprocessor();
+        qaClient.loadVqaAns();
     }
 
     @Override

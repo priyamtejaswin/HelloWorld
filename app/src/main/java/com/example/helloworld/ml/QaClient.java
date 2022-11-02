@@ -19,10 +19,12 @@ import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.util.JsonReader;
 import android.util.Log;
 
 import androidx.annotation.WorkerThread;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Joiner;
 
 //import org.tensorflow.lite.Interpreter;
@@ -58,6 +60,7 @@ public class QaClient {
   private static final String DIC_PATH = "vocab.txt";
   private static final String MODEL_PATH = "optTracedVilt.ptl";
   private static final String PBT_PATH = "optPixelbertTransform.ptl";
+  private static final String VQA_PATH = "vqa_dict.json";
 
   private static final int MAX_ANS_LEN = 32;
   private static final int MAX_QUERY_LEN = 64;
@@ -79,6 +82,9 @@ public class QaClient {
   float[] ZERO_MEAN = new float[] {0.0f, 0.0f, 0.0f};
   float[] UNIT_STD = new float[] {1.0f, 1.0f, 1.0f};
 
+  ObjectMapper mapper = new ObjectMapper();
+  Map<Integer, String> vqa_ans = new HashMap<>();
+
   private static final Joiner SPACE_JOINER = Joiner.on(" ");
 
   public QaClient(Context context) {
@@ -97,6 +103,16 @@ public class QaClient {
     }
   }
 
+  public void loadVqaAns() {
+    try {
+      Log.v(TAG, "Loading VQA ans json.");
+      loadVqaDictFile(this.context.getAssets());
+      Log.v(TAG, "VQA ans json loaded.");
+    } catch (IOException ex) {
+      Log.e(TAG, ex.getMessage());
+    }
+  }
+
   public void loadModel() {
     try {
       Log.v(TAG, "Loading model.");
@@ -110,7 +126,7 @@ public class QaClient {
   public void loadImagePreprocessor() {
     try {
       Log.v(TAG, "Loading PixelBert preprocessor.");
-      loadPBT(this.context);
+      loadPBTFile(this.context);
       Log.v(TAG, "PixelBert preprocessor loaded.");
     } catch (IOException ex) {
       Log.e(TAG, ex.getMessage());
@@ -122,6 +138,7 @@ public class QaClient {
     dic.clear();
     model.destroy();
     pbt.destroy();
+    vqa_ans.clear();
   }
 
   /** Load dictionary from assets. */
@@ -141,8 +158,23 @@ public class QaClient {
     model = LiteModuleLoader.load(assetFilePath(context, MODEL_PATH));
   }
 
-  public void loadPBT(Context context) throws IOException {
+  public void loadPBTFile(Context context) throws IOException {
     pbt = LiteModuleLoader.load(assetFilePath(context, PBT_PATH));
+  }
+
+  public void loadVqaDictFile(AssetManager assetManager) throws IOException {
+    Log.v(TAG, "Loading VQA answer dictionary.");
+    try (InputStream ins = assetManager.open(VQA_PATH);) {
+      JsonReader reader = new JsonReader(new InputStreamReader(ins));
+      reader.beginObject();
+      while (reader.hasNext()) {
+        Integer key = Integer.parseInt(reader.nextName());
+        String value = reader.nextString();
+        vqa_ans.put(key, value);
+      }
+      reader.endObject();
+      Log.v(TAG, "Items found:" + vqa_ans.size());
+    }
   }
 
   /**
@@ -214,7 +246,7 @@ public class QaClient {
     }
   }
 
-  public void doVQA(String imgName, String question) {
+  public String doVQA(String imgName, String question) {
     try {
       // Load image.
       Bitmap bitmap = BitmapFactory.decodeStream(this.context.getAssets().open(imgName));
@@ -273,9 +305,15 @@ public class QaClient {
           maxScoreIdx = i;
         }
       }
+      Log.v(TAG, "maxScore:" + maxScore);
+      Log.v(TAG, "Index:" + maxScoreIdx);
+      String answer = vqa_ans.get(maxScoreIdx);
+      Log.v(TAG, "Answer:" + answer);
+      return answer;
     }
     catch (IOException ex) {
       Log.e(TAG, ex.getMessage());
     }
+    return "Failed.";
   }
 }
