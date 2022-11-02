@@ -24,7 +24,7 @@ import android.util.Log;
 
 import androidx.annotation.WorkerThread;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+//import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Joiner;
 
 //import org.tensorflow.lite.Interpreter;
@@ -82,7 +82,7 @@ public class QaClient {
   float[] ZERO_MEAN = new float[] {0.0f, 0.0f, 0.0f};
   float[] UNIT_STD = new float[] {1.0f, 1.0f, 1.0f};
 
-  ObjectMapper mapper = new ObjectMapper();
+//  ObjectMapper mapper = new ObjectMapper();
   Map<Integer, String> vqa_ans = new HashMap<>();
 
   private static final Joiner SPACE_JOINER = Joiner.on(" ");
