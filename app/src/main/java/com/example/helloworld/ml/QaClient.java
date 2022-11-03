@@ -155,11 +155,11 @@ public class QaClient {
   }
 
   public void loadModelFile(Context context) throws IOException {
-    model = LiteModuleLoader.load(assetFilePath(context, MODEL_PATH));
+    model = LiteModuleLoader.loadModuleFromAsset(context.getAssets(), MODEL_PATH);
   }
 
   public void loadPBTFile(Context context) throws IOException {
-    pbt = LiteModuleLoader.load(assetFilePath(context, PBT_PATH));
+    pbt = LiteModuleLoader.loadModuleFromAsset(context.getAssets(), PBT_PATH);
   }
 
   public void loadVqaDictFile(AssetManager assetManager) throws IOException {
@@ -224,26 +224,6 @@ public class QaClient {
     // end + 1 for the closed interval.
     String ans = SPACE_JOINER.join(feature.origTokens.subList(startIndex, endIndex + 1));
     return ans;
-  }
-
-  /** Get absolute path. */
-  public static String assetFilePath(Context context, String assetName) throws IOException {
-    File file = new File(context.getFilesDir(), assetName);
-    if (file.exists() && file.length() > 0) {
-      return file.getAbsolutePath();
-    }
-
-    try (InputStream is = context.getAssets().open(assetName)) {
-      try (OutputStream os = new FileOutputStream(file)) {
-        byte[] buffer = new byte[4 * 1024];
-        int read;
-        while ((read = is.read(buffer)) != -1) {
-          os.write(buffer, 0, read);
-        }
-        os.flush();
-      }
-      return file.getAbsolutePath();
-    }
   }
 
   public String doVQA(String imgName, String question) {
