@@ -19,6 +19,8 @@ import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
+import android.provider.MediaStore;
 import android.util.JsonReader;
 import android.util.Log;
 
@@ -226,10 +228,34 @@ public class QaClient {
     return ans;
   }
 
-  public String doVQA(String imgName, String question) {
+  public String doVQA(Uri uri, String question) {
+
+    try {
+      Bitmap bitmap = MediaStore.Images.Media.getBitmap(context.getContentResolver(), uri);
+      return doVQA(bitmap,question);
+    } catch (IOException e) {
+      Log.e(TAG, e.getMessage());
+      return "Cannot Generate Answer.";
+    }
+
+  }
+
+  public String doVQA(String imageName, String question) {
+
+    try {
+      Bitmap bitmap = BitmapFactory.decodeStream(context.getAssets().open(imageName));
+      return doVQA(bitmap,question);
+    } catch (IOException e) {
+      Log.e(TAG, e.getMessage());
+      return "Cannot Generate Answer.";
+    }
+
+  }
+
+  private String doVQA(Bitmap bitmap, String question) {
     try {
       // Load image.
-      Bitmap bitmap = BitmapFactory.decodeStream(this.context.getAssets().open(imgName));
+
       Tensor inputTensor = TensorImageUtils.bitmapToFloat32Tensor(bitmap,
               ZERO_MEAN,
               UNIT_STD,
@@ -291,9 +317,9 @@ public class QaClient {
       Log.v(TAG, "Answer:" + answer);
       return answer;
     }
-    catch (IOException ex) {
+    catch (Exception ex) {
       Log.e(TAG, ex.getMessage());
     }
-    return "Failed.";
+    return "Cannot Generate Answer.";
   }
 }
