@@ -19,6 +19,8 @@ import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
+import android.provider.MediaStore;
 import android.util.JsonReader;
 import android.util.Log;
 
@@ -155,11 +157,11 @@ public class QaClient {
   }
 
   public void loadModelFile(Context context) throws IOException {
-    model = LiteModuleLoader.load(assetFilePath(context, MODEL_PATH));
+    model = LiteModuleLoader.loadModuleFromAsset(context.getAssets(), MODEL_PATH);
   }
 
   public void loadPBTFile(Context context) throws IOException {
-    pbt = LiteModuleLoader.load(assetFilePath(context, PBT_PATH));
+    pbt = LiteModuleLoader.loadModuleFromAsset(context.getAssets(), PBT_PATH);
   }
 
   public void loadVqaDictFile(AssetManager assetManager) throws IOException {
@@ -226,30 +228,34 @@ public class QaClient {
     return ans;
   }
 
-  /** Get absolute path. */
-  public static String assetFilePath(Context context, String assetName) throws IOException {
-    File file = new File(context.getFilesDir(), assetName);
-    if (file.exists() && file.length() > 0) {
-      return file.getAbsolutePath();
+  public String doVQA(Uri uri, String question) {
+
+    try {
+      Bitmap bitmap = MediaStore.Images.Media.getBitmap(context.getContentResolver(), uri);
+      return doVQA(bitmap,question);
+    } catch (IOException e) {
+      Log.e(TAG, e.getMessage());
+      return "Cannot Generate Answer.";
     }
 
-    try (InputStream is = context.getAssets().open(assetName)) {
-      try (OutputStream os = new FileOutputStream(file)) {
-        byte[] buffer = new byte[4 * 1024];
-        int read;
-        while ((read = is.read(buffer)) != -1) {
-          os.write(buffer, 0, read);
-        }
-        os.flush();
-      }
-      return file.getAbsolutePath();
-    }
   }
 
-  public String doVQA(String imgName, String question) {
+  public String doVQA(String imageName, String question) {
+
+    try {
+      Bitmap bitmap = BitmapFactory.decodeStream(context.getAssets().open(imageName));
+      return doVQA(bitmap,question);
+    } catch (IOException e) {
+      Log.e(TAG, e.getMessage());
+      return "Cannot Generate Answer.";
+    }
+
+  }
+
+  private String doVQA(Bitmap bitmap, String question) {
     try {
       // Load image.
-      Bitmap bitmap = BitmapFactory.decodeStream(this.context.getAssets().open(imgName));
+
       Tensor inputTensor = TensorImageUtils.bitmapToFloat32Tensor(bitmap,
               ZERO_MEAN,
               UNIT_STD,
@@ -311,9 +317,9 @@ public class QaClient {
       Log.v(TAG, "Answer:" + answer);
       return answer;
     }
-    catch (IOException ex) {
+    catch (Exception ex) {
       Log.e(TAG, ex.getMessage());
     }
-    return "Failed.";
+    return "Cannot Generate Answer.";
   }
 }

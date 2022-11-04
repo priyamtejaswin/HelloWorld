@@ -1,6 +1,12 @@
 package com.example.helloworld;
 
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+
+import android.app.Activity;
+import android.content.Intent;
+import android.media.Image;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.provider.Settings;
@@ -10,9 +16,12 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.example.helloworld.ml.QaClient;
+import com.github.dhaval2404.imagepicker.ImagePicker;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,6 +35,7 @@ public class MainActivity extends AppCompatActivity {
 
     TextView answerView;
     EditText inputText;
+    ImageView imageView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,7 +44,38 @@ public class MainActivity extends AppCompatActivity {
 
         answerView = (TextView) findViewById(R.id.answerView);
         inputText = (EditText) findViewById(R.id.editTextQuestion);
+        imageView = (ImageView) findViewById(R.id.imageView2);
+        imageView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                openImagePicker();
+            }
+        });
+
         qaClient = new QaClient(this);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode == Activity.RESULT_OK) {
+            //Image Uri will not be null for RESULT_OK
+            Uri uri = data.getData();
+            // Use Uri object instead of File to avoid storage permissions
+            imageView.setImageURI(uri);
+        } else if (resultCode == ImagePicker.RESULT_ERROR) {
+            Toast.makeText(this, ImagePicker.getError(data), Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(this, "Task Cancelled", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void openImagePicker() {
+        ImagePicker.with(this)
+                .crop()	    			//Crop image(Optional), Check Customization for more option
+                .compress(1024)			//Final image size will be less than 1 MB(Optional)
+                .maxResultSize(1080, 1080)	//Final image resolution will be less than 1080 x 1080(Optional)
+                .start();
     }
 
     public void updateText(View view) {
@@ -56,42 +97,6 @@ public class MainActivity extends AppCompatActivity {
         super.onStart();
 //        handler.post(() -> qaClient.loadDictionary());
         qaClient.loadDictionary();
-
-        // Run all tests here for parity!
-        String[] texts = {"is this pizza vegetarian?",
-                "Is this pizza vegetarian?",
-                "how many dogs are there in this picture ?",
-                "How many Dogs are there in this picture ?",
-                "what is next to the number 102"
-        };
-        int[][] truths = {{101, 2003, 2023, 10733, 23566, 1029, 102},
-                {101, 2003, 2023, 10733, 23566, 1029, 102},
-                {101, 2129, 2116, 6077, 2024, 2045, 1999, 2023, 3861, 1029, 102},
-                {101, 2129, 2116, 6077, 2024, 2045, 1999, 2023, 3861, 1029, 102},
-                {101, 2054, 2003, 2279, 2000, 1996, 2193, 9402, 102}
-        };
-
-        for (int i = 0; i < texts.length; i++) {
-            String t = texts[i];
-            List<Integer> pred = new ArrayList<>();
-            int[] target = truths[i];
-
-            for (Integer e : qaClient.q2ids(t)[0]) {
-                if (e != 0) {
-                    pred.add(e);
-                    if (e == 102) break;
-                } else break;
-            }
-
-            int[] ids = new int[0];
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-                ids = pred.stream().mapToInt(Integer::intValue).toArray();
-            }
-
-            System.out.println("p: " + Arrays.toString(ids));
-            System.out.println("t: " + Arrays.toString(target));
-            assert Arrays.equals(ids, target) : "LAST ONE FAILED!";
-        }
 
         qaClient.loadModel();
         qaClient.loadImagePreprocessor();
