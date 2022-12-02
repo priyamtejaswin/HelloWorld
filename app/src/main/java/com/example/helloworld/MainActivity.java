@@ -36,6 +36,7 @@ public class MainActivity extends AppCompatActivity {
     TextView answerView;
     EditText inputText;
     ImageView imageView;
+    Uri imageUri;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,6 +62,7 @@ public class MainActivity extends AppCompatActivity {
         if (resultCode == Activity.RESULT_OK) {
             //Image Uri will not be null for RESULT_OK
             Uri uri = data.getData();
+            imageUri = uri;
             // Use Uri object instead of File to avoid storage permissions
             imageView.setImageURI(uri);
         } else if (resultCode == ImagePicker.RESULT_ERROR) {
@@ -80,7 +82,9 @@ public class MainActivity extends AppCompatActivity {
 
     public void updateText(View view) {
         Editable query = inputText.getText();
-        String answer = qaClient.doVQA("helmet.jpg", query.toString());
+        String answer = qaClient.doVQA( imageUri, query.toString());
+
+
 
         int[][] bertids = qaClient.q2ids(query.toString());
         for (int element : bertids[0]) {
